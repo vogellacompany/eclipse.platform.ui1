@@ -27,7 +27,7 @@ Figure 1: High Level Architecture
 Eclipse Commands Tutorial
 =========================
 
-[http://www.vogella.de/articles/EclipseCommands/article.html](http://www.vogella.de/articles/EclipseCommands/article.html) Tutorial about using Eclipse Commands by Lars Vogel
+[http://www.vogella.de/articles/EclipseCommands/article.html](https://www.vogella.com/tutorials/EclipseCommandsAdvanced/article.html) Tutorial about using Eclipse Commands by Lars Vogel
 
 Other Resources
 ===============
