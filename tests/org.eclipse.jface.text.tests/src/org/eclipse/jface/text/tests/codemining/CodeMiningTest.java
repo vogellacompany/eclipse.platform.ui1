@@ -35,6 +35,7 @@ import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.ImageData;
+import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Display;
@@ -69,7 +70,7 @@ public class CodeMiningTest {
 	private Shell fShell;
 
 	@Rule
-	public TestWatcher screenshotRule= Screenshots.onFailure();
+	public TestWatcher screenshotRule= Screenshots.onFailure(() -> fShell);
 
 	@Before
 	public void setUp() {
@@ -117,7 +118,6 @@ public class CodeMiningTest {
 
 	@After
 	public void tearDown() {
-		fShell.dispose();
 		fViewer = null;
 	}
 
@@ -249,6 +249,71 @@ public class CodeMiningTest {
 				}
 			}
 		}.waitForCondition(fViewer.getTextWidget().getDisplay(), 1000));
+	}
+
+	@Test
+	public void testLineHeaderCodeMiningAtEndOfDocumentWithEmptyLine() throws Exception {
+		String source= "first\nsecond\n";
+		fViewer.getDocument().set(source);
+		fViewer.setCodeMiningProviders(new ICodeMiningProvider[] { new ICodeMiningProvider() {
+			@Override
+			public CompletableFuture<List<? extends ICodeMining>> provideCodeMinings(ITextViewer viewer, IProgressMonitor monitor) {
+				List<ICodeMining> minings= new ArrayList<>();
+				try {
+					minings.add(new LineHeaderCodeMining(new Position(source.length(), 0), this, null) {
+						@Override
+						public String getLabel() {
+							return "multiline first line\nmultiline second line\nmultiline third line\nmultiline fourth line";
+						}
+					});
+				} catch (BadLocationException e) {
+					e.printStackTrace();
+				}
+				return CompletableFuture.completedFuture(minings);
+			}
+
+			@Override
+			public void dispose() {
+			}
+		} });
+		Assert.assertTrue("Code mining is not visible at end of document", new DisplayHelper() {
+			@Override
+			protected boolean condition() {
+				try {
+					return hasCodeMiningPrintedAfterTextOnLine(fViewer, 2);
+				} catch (BadLocationException e) {
+					e.printStackTrace();
+					return false;
+				}
+			}
+		}.waitForCondition(fViewer.getTextWidget().getDisplay(), 10_000));
+	}
+
+	@Test
+	public void testCodeMiningAtEndOfDocumentWithEmptyLine() throws Exception {
+		String source= "first\nsecond\n";
+		fViewer.getDocument().set(source);
+		fViewer.setCodeMiningProviders(new ICodeMiningProvider[] { new ICodeMiningProvider() {
+			@Override
+			public CompletableFuture<List<? extends ICodeMining>> provideCodeMinings(ITextViewer viewer, IProgressMonitor monitor) {
+				return CompletableFuture.completedFuture(Collections.singletonList(new StaticContentLineCodeMining(new Position(source.length(), 0), true, "mining", this)));
+			}
+
+			@Override
+			public void dispose() {
+			}
+		} });
+		Assert.assertTrue("Code mining is not visible at end of document", new DisplayHelper() {
+			@Override
+			protected boolean condition() {
+				try {
+					return hasCodeMiningPrintedAfterTextOnLine(fViewer, 2);
+				} catch (BadLocationException e) {
+					e.printStackTrace();
+					return false;
+				}
+			}
+		}.waitForCondition(fViewer.getTextWidget().getDisplay(), 10_000));
 	}
 
 	@Test
@@ -390,7 +455,18 @@ public class CodeMiningTest {
 		if (lineLength < 0) {
 			lineLength= 0;
 		}
-		Rectangle secondLineBounds= widget.getTextBounds(document.getLineOffset(line), document.getLineOffset(line) + lineLength);
+		Rectangle secondLineBounds= null;
+		int lineOffset= document.getLineOffset(line);
+		if (lineOffset >= document.getLength()) {
+			int off= document.getLength() - 1;
+			secondLineBounds= widget.getTextBounds(off, off + lineLength);
+			Point l= widget.getLocationAtOffset(lineOffset);
+			int lineVerticalIndent= widget.getLineVerticalIndent(line);
+			secondLineBounds.x= l.x;
+			secondLineBounds.y= l.y - lineVerticalIndent;
+		} else {
+			secondLineBounds= widget.getTextBounds(lineOffset, lineOffset + lineLength);
+		}
 		Image image = new Image(widget.getDisplay(), widget.getSize().x, widget.getSize().y);
 		GC gc = new GC(widget);
 		gc.copyArea(image, 0, 0);

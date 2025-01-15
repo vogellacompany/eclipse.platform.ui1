@@ -616,6 +616,8 @@ public class LineNumberRulerColumn implements IVerticalRulerColumn {
 			fCachedTextWidget= null;
 		});
 
+		fCanvas.addListener(SWT.ZoomChanged, e -> computeIndentations());
+
 		fMouseHandler= new MouseHandler();
 		fCanvas.addMouseListener(fMouseHandler);
 		fCanvas.addMouseMoveListener(fMouseHandler);
@@ -850,6 +852,7 @@ public class LineNumberRulerColumn implements IVerticalRulerColumn {
 
 				// use height of text bounding because bounds.width changes on word wrap
 				y+= fCachedTextWidget.getTextBounds(offsetAtLine, offsetEnd).height;
+				y+= fCachedTextWidget.getLineSpacing();
 			}
 		}
 	}

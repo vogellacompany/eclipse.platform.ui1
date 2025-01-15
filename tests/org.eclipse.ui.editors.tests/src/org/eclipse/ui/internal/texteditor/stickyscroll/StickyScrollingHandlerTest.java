@@ -20,8 +20,12 @@ import static org.eclipse.ui.texteditor.AbstractDecoratedTextEditorPreferenceCon
 import static org.eclipse.ui.texteditor.AbstractDecoratedTextEditorPreferenceConstants.EDITOR_TAB_WIDTH;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.atMost;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -33,6 +37,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.widgets.Canvas;
@@ -61,14 +66,19 @@ public class StickyScrollingHandlerTest {
 	private IStickyLinesProvider linesProvider;
 	private StickyScrollingHandler stickyScrollingHandler;
 	private StickyLinesProperties stickyLinesProperties;
+	private StyledText textWidget;
 
 	@Before
 	public void setup() {
 		shell = new Shell(Display.getDefault());
+		shell.setBounds(0, 0, 200, 80);
 		ruler = new CompositeRuler();
 		sourceViewer = new SourceViewer(shell, ruler, SWT.None);
 		sourceViewer.setDocument(new Document());
-		sourceViewer.getTextWidget().setBounds(0, 0, 200, 200);
+		sourceViewer.getTextWidget().setBounds(0, 0, 200, 100);
+		textWidget = sourceViewer.getTextWidget();
+		textWidget.setText("first 1 \nline 2 \nline 3 \nline 4 \nline 5 \nline 6 \nline 7 \nline 8 \nline 9 \nline 10");
+		textWidget.setTopIndex(1);
 
 		lineNumberColor = new Color(0, 0, 0);
 		hoverColor = new Color(1, 1, 1);
@@ -87,8 +97,8 @@ public class StickyScrollingHandlerTest {
 
 	@Test
 	public void testShowStickyLines() {
-		when(linesProvider.getStickyLines(sourceViewer, stickyLinesProperties))
-				.thenReturn(List.of(new StickyLine("line 10", 9)));
+		when(linesProvider.getStickyLines(sourceViewer, 1, stickyLinesProperties))
+				.thenReturn(List.of(new StickyLineStub("line 10", 9)));
 
 		stickyScrollingHandler.viewportChanged(100);
 
@@ -98,6 +108,19 @@ public class StickyScrollingHandlerTest {
 		StyledText stickyLineText = getStickyLineText();
 		String expStickyLineText = "line 10";
 		assertEquals(expStickyLineText, stickyLineText.getText());
+	}
+
+	@Test
+	public void testDontCalculateStickyLinesForFirstLine() {
+		textWidget.setTopIndex(0);
+
+		stickyScrollingHandler.viewportChanged(100);
+
+		StyledText stickyLineNumber = getStickyLineNumber();
+		assertEquals("", stickyLineNumber.getText());
+		StyledText stickyLineText = getStickyLineText();
+		assertEquals("", stickyLineText.getText());
+		verify(linesProvider, never()).getStickyLines(any(), anyInt(), any());
 	}
 
 	@Test
@@ -111,8 +134,8 @@ public class StickyScrollingHandlerTest {
 
 	@Test
 	public void testPreferencesLoaded() {
-		when(linesProvider.getStickyLines(sourceViewer, stickyLinesProperties))
-				.thenReturn(List.of(new StickyLine("line 10", 9)));
+		when(linesProvider.getStickyLines(sourceViewer, 1, stickyLinesProperties))
+				.thenReturn(List.of(new StickyLineStub("line 10", 9)));
 
 		stickyScrollingHandler.viewportChanged(100);
 
@@ -122,8 +145,10 @@ public class StickyScrollingHandlerTest {
 
 	@Test
 	public void testPreferencesUpdated() {
-		when(linesProvider.getStickyLines(sourceViewer, stickyLinesProperties))
-				.thenReturn(List.of(new StickyLine("line 10", 9), new StickyLine("line 20", 19)));
+		when(linesProvider.getStickyLines(sourceViewer, 1, stickyLinesProperties))
+				.thenReturn(List.of(new StickyLineStub("line 10", 9), new StickyLineStub("line 20", 19)));
+		when(linesProvider.getStickyLines(sourceViewer, 2, stickyLinesProperties))
+				.thenReturn(List.of(new StickyLineStub("line 10", 9), new StickyLineStub("line 20", 19)));
 
 		stickyScrollingHandler.viewportChanged(100);
 
@@ -140,14 +165,14 @@ public class StickyScrollingHandlerTest {
 
 	@Test
 	public void testThrottledExecution() throws InterruptedException {
-		when(linesProvider.getStickyLines(sourceViewer, stickyLinesProperties))
-				.thenReturn(List.of(new StickyLine("line 10", 9)));
-		when(linesProvider.getStickyLines(sourceViewer, stickyLinesProperties))
-				.thenReturn(List.of(new StickyLine("line 10", 9)));
-		when(linesProvider.getStickyLines(sourceViewer, stickyLinesProperties))
-				.thenReturn(List.of(new StickyLine("line 10", 9)));
-		when(linesProvider.getStickyLines(sourceViewer, stickyLinesProperties))
-				.thenReturn(List.of(new StickyLine("line 10", 9)));
+		when(linesProvider.getStickyLines(sourceViewer, 1, stickyLinesProperties))
+				.thenReturn(List.of(new StickyLineStub("line 10", 9)));
+		when(linesProvider.getStickyLines(sourceViewer, 1, stickyLinesProperties))
+				.thenReturn(List.of(new StickyLineStub("line 10", 9)));
+		when(linesProvider.getStickyLines(sourceViewer, 1, stickyLinesProperties))
+				.thenReturn(List.of(new StickyLineStub("line 10", 9)));
+		when(linesProvider.getStickyLines(sourceViewer, 1, stickyLinesProperties))
+				.thenReturn(List.of(new StickyLineStub("line 10", 9)));
 
 		stickyScrollingHandler.viewportChanged(100);
 		Thread.sleep(10);
@@ -159,8 +184,38 @@ public class StickyScrollingHandlerTest {
 
 		waitInUi(300);
 
-		// Call to lines provider should be throttled
-		verify(linesProvider, times(2)).getStickyLines(sourceViewer, stickyLinesProperties);
+		// Call to lines provider should be throttled, at least one and at most
+		// 3 calls expected
+		verify(linesProvider, atMost(3)).getStickyLines(sourceViewer, 1, stickyLinesProperties);
+		verify(linesProvider, atLeastOnce()).getStickyLines(sourceViewer, 1, stickyLinesProperties);
+	}
+
+	@Test
+	public void testRemoveStickyLines() {
+		when(linesProvider.getStickyLines(sourceViewer, 1, stickyLinesProperties))
+				.thenReturn(List.of(new StickyLineStub("line 1", 0), new StickyLineStub("line 2", 1)));
+		when(linesProvider.getStickyLines(sourceViewer, 2, stickyLinesProperties))
+				.thenReturn(List.of(new StickyLineStub("line 3", 2)));
+
+		stickyScrollingHandler.viewportChanged(100);
+
+		StyledText stickyLineText = getStickyLineText();
+		String expStickyLineText = "line 1";
+		assertEquals(expStickyLineText, stickyLineText.getText());
+	}
+
+	@Test
+	public void testLineUnderStickyLine() {
+		when(linesProvider.getStickyLines(sourceViewer, 1, stickyLinesProperties))
+				.thenReturn(List.of(new StickyLineStub("line 1", 0)));
+		when(linesProvider.getStickyLines(sourceViewer, 2, stickyLinesProperties))
+				.thenReturn(List.of(new StickyLineStub("line 1", 0), new StickyLineStub("line 2", 1)));
+
+		stickyScrollingHandler.viewportChanged(100);
+
+		StyledText stickyLineText = getStickyLineText();
+		String expStickyLineText = "line 1" + System.lineSeparator() + "line 2";
+		assertEquals(expStickyLineText, stickyLineText.getText());
 	}
 
 	private void waitInUi(int ms) throws InterruptedException {
@@ -213,6 +268,32 @@ public class StickyScrollingHandlerTest {
 		joiner.add(String.valueOf(color.getGreen()));
 		joiner.add(String.valueOf(color.getBlue()));
 		return joiner.toString();
+	}
+
+	private class StickyLineStub implements IStickyLine {
+
+		private final String text;
+		private final int lineNumber;
+
+		public StickyLineStub(String text, int lineNumber) {
+			this.text = text;
+			this.lineNumber = lineNumber;
+		}
+
+		@Override
+		public int getLineNumber() {
+			return lineNumber;
+		}
+
+		@Override
+		public String getText() {
+			return text;
+		}
+
+		@Override
+		public StyleRange[] getStyleRanges() {
+			return null;
+		}
 	}
 
 }

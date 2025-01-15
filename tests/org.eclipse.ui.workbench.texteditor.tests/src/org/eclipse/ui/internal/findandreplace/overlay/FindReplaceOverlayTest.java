@@ -13,6 +13,7 @@
  *******************************************************************************/
 package org.eclipse.ui.internal.findandreplace.overlay;
 
+import static org.eclipse.ui.internal.findandreplace.FindReplaceTestUtil.waitForFocus;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
@@ -45,8 +46,10 @@ public class FindReplaceOverlayTest extends FindReplaceUITest<OverlayAccess> {
 	public OverlayAccess openUIFromTextViewer(TextViewer viewer) {
 		Accessor actionAccessor= new Accessor(getFindReplaceAction(), FindReplaceAction.class);
 		actionAccessor.invoke("showOverlayInEditor", null);
-		Accessor overlayAccessor= new Accessor(actionAccessor.get("overlay"), "org.eclipse.ui.internal.findandreplace.overlay.FindReplaceOverlay", getClass().getClassLoader());
-		return new OverlayAccess(getFindReplaceTarget(), overlayAccessor);
+		FindReplaceOverlay overlay= (FindReplaceOverlay) actionAccessor.get("overlay");
+		OverlayAccess uiAccess= new OverlayAccess(getFindReplaceTarget(), overlay);
+		waitForFocus(uiAccess::hasFocus, testName.getMethodName());
+		return uiAccess;
 	}
 
 	@Test
@@ -157,8 +160,7 @@ public class FindReplaceOverlayTest extends FindReplaceUITest<OverlayAccess> {
 
 		OverlayAccess dialog= getDialog();
 		dialog.select(SearchOptions.REGEX);
-		dialog.setFindText("text"); // with RegEx enabled, there is no incremental search!
-		dialog.pressSearch(true);
+		dialog.setFindText("text");
 		assertThat(target.getSelection().y, is(4));
 		dialog.pressSearch(true);
 		assertThat(target.getSelection().x, is("text ".length()));

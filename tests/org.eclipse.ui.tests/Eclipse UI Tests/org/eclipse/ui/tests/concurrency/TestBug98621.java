@@ -28,7 +28,10 @@ import org.eclipse.jface.dialogs.ProgressMonitorDialog;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.actions.WorkspaceModifyOperation;
+import org.eclipse.ui.tests.SwtLeakTestWatcher;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestWatcher;
 
 /**
  * Tests the following sequence of events:
@@ -47,6 +50,10 @@ import org.junit.Test;
  *  @since 3.2
  */
 public class TestBug98621 {
+
+	@Rule
+	public TestWatcher swtLeakTestWatcher = new SwtLeakTestWatcher();
+
 	class TransferTestOperation extends WorkspaceModifyOperation {
 		@Override
 		public void execute(final IProgressMonitor pm) {
@@ -75,17 +82,14 @@ public class TestBug98621 {
 
 	private final IWorkspace workspace = ResourcesPlugin.getWorkspace();
 
-	public TestBug98621() {
-		super();
-	}
-
 	/**
 	 * Performs the test
 	 */
 	@Test
 	public void testBug() throws CoreException {
+		Shell shell = new Shell();
 		workspace.run((IWorkspaceRunnable) monitor -> {
-			ProgressMonitorDialog dialog = new ProgressMonitorDialog(new Shell());
+			ProgressMonitorDialog dialog = new ProgressMonitorDialog(shell);
 			try {
 				dialog.run(true, false, new TransferTestOperation());
 			} catch (InvocationTargetException e1) {
@@ -95,5 +99,6 @@ public class TestBug98621 {
 				// ignore
 			}
 		}, workspace.getRoot(), IResource.NONE, null);
+		shell.close();
 	}
 }

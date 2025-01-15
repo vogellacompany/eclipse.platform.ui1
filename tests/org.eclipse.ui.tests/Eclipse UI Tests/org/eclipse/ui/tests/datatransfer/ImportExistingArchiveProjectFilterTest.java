@@ -21,6 +21,7 @@ import java.util.Set;
 
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
@@ -40,13 +41,13 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.IPageLayout;
 import org.eclipse.ui.IViewPart;
 import org.eclipse.ui.IWorkbenchPage;
+import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.internal.WorkbenchPlugin;
 import org.eclipse.ui.internal.dialogs.ImportExportWizard;
 import org.eclipse.ui.internal.wizards.datatransfer.WizardProjectsImportPage;
 import org.eclipse.ui.internal.wizards.datatransfer.WizardProjectsImportPage.ProjectRecord;
 import org.eclipse.ui.navigator.resources.ProjectExplorer;
 import org.eclipse.ui.tests.TestPlugin;
-import org.eclipse.ui.tests.harness.util.DialogCheck;
 import org.eclipse.ui.tests.harness.util.EmptyPerspective;
 import org.eclipse.ui.tests.harness.util.FileUtil;
 import org.eclipse.ui.tests.harness.util.UITestCase;
@@ -66,6 +67,10 @@ public class ImportExistingArchiveProjectFilterTest extends UITestCase {
 
 	@Override
 	protected void doTearDown() throws Exception {
+		if (dialog != null) {
+			dialog.close();
+			dialog = null;
+		}
 		IWorkspaceRoot wsRoot = ResourcesPlugin.getWorkspace().getRoot();
 		IProject[] projects = wsRoot.getProjects();
 		for (int i = projects.length - 1; i >= 0; i--) {
@@ -150,7 +155,7 @@ public class ImportExistingArchiveProjectFilterTest extends UITestCase {
 		if (element instanceof IFolder) {
 			IFolder folder = (IFolder) element;
 			assertFalse(folder.getName().equalsIgnoreCase("res"));
-		} else {
+		} else if (element instanceof IResource) { // to expensive to walk other contributions like whole JRE from JDT
 			Object[] children = contentProvider.getChildren(element);
 			for (Object child : children) {
 				processElementAndChildren(child, contentProvider);
@@ -158,6 +163,7 @@ public class ImportExistingArchiveProjectFilterTest extends UITestCase {
 		}
 	}
 
+	private WizardDialog dialog;
 	public WizardProjectsImportPage getNewWizard() {
 		ImportExportWizard wizard = new ImportExportWizard(ImportExportWizard.IMPORT);
 		wizard.init(getWorkbench(), null);
@@ -173,7 +179,10 @@ public class ImportExistingArchiveProjectFilterTest extends UITestCase {
 
 		Shell shell = getShell();
 
-		WizardDialog dialog = new WizardDialog(shell, wizard);
+		if (dialog != null) {
+			dialog.close();
+		}
+		dialog = new WizardDialog(shell, wizard);
 		dialog.create();
 		dialog.getShell().setSize(Math.max(100, dialog.getShell().getSize().x), 100);
 
@@ -185,6 +194,6 @@ public class ImportExistingArchiveProjectFilterTest extends UITestCase {
 	}
 
 	private Shell getShell() {
-		return DialogCheck.getShell();
+		return PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell();
 	}
 }

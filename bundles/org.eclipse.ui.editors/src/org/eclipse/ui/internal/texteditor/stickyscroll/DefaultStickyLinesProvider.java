@@ -36,83 +36,33 @@ public class DefaultStickyLinesProvider implements IStickyLinesProvider {
 	private StickyLinesProperties fProperties;
 
 	@Override
-	public List<StickyLine> getStickyLines(ISourceViewer sourceViewer, StickyLinesProperties properties) {
-		if (sourceViewer.getTopIndex() == 0) {
-			return Collections.emptyList();
-		}
-
+	public List<IStickyLine> getStickyLines(ISourceViewer sourceViewer, int lineNumber, StickyLinesProperties properties) {
 		this.fProperties= properties;
-		LinkedList<StickyLine> stickyLines= new LinkedList<>();
+		LinkedList<IStickyLine> stickyLines= new LinkedList<>();
 
+		StyledText textWidget= sourceViewer.getTextWidget();
+		int textWidgetLineNumber= mapLineNumberToWidget(sourceViewer, lineNumber);
 		try {
-			StyledText textWidget= sourceViewer.getTextWidget();
-			int startLine= textWidget.getTopIndex();
+			int startIndetation= getStartIndentation(textWidgetLineNumber, textWidget);
 
-			calculateStickyLinesForLineNumber(stickyLines, sourceViewer, startLine);
-			calculateStickyLinesUnderStickyLineControl(stickyLines, sourceViewer, startLine);
+			for (int i= textWidgetLineNumber, previousIndetation= startIndetation; i >= 0; i--) {
+				String line= textWidget.getLine(i);
+				int indentation= getIndentation(line);
+
+				if (indentation == IGNORE_LINE_INDENTATION) {
+					continue;
+				}
+
+				if (indentation < previousIndetation) {
+					previousIndetation= indentation;
+					stickyLines.addFirst(new StickyLine(mapLineNumberToViewer(sourceViewer, i), sourceViewer));
+				}
+			}
 		} catch (IllegalArgumentException e) {
 			stickyLines.clear();
 		}
 
 		return stickyLines;
-	}
-
-	private void calculateStickyLinesForLineNumber(LinkedList<StickyLine> stickyLines, ISourceViewer sourceViewer, int lineNumber) {
-		StyledText textWidget= sourceViewer.getTextWidget();
-		int startIndetation= getStartIndentation(lineNumber, textWidget);
-
-		for (int i= lineNumber, previousIndetation= startIndetation; i >= 0; i--) {
-			String line= textWidget.getLine(i);
-			int indentation= getIndentation(line);
-
-			if (indentation == IGNORE_LINE_INDENTATION) {
-				continue;
-			}
-
-			if (indentation < previousIndetation) {
-				previousIndetation= indentation;
-				stickyLines.addFirst(new StickyLine(line, mapLineNumberToSourceViewerLine(i, sourceViewer)));
-			}
-		}
-	}
-
-	private void calculateStickyLinesUnderStickyLineControl(LinkedList<StickyLine> stickyLines, ISourceViewer sourceViewer, int startLine) {
-		int firstBelowControl= startLine + stickyLines.size();
-		StyledText textWidget= sourceViewer.getTextWidget();
-		int lineCount= textWidget.getLineCount();
-
-		for (int i= startLine; i < firstBelowControl && i < lineCount; i++) {
-
-			String line= textWidget.getLine(i);
-			int indentation= getIndentation(line);
-			if (indentation == IGNORE_LINE_INDENTATION) {
-				continue;
-			}
-
-			while (!stickyLines.isEmpty() && indentation <= getLastStickyLineIndentation(stickyLines) && i < firstBelowControl) {
-				stickyLines.removeLast();
-				firstBelowControl--;
-			}
-
-			String nextContentLine= getNextContentLine(i, textWidget);
-			if (getIndentation(nextContentLine) > indentation && i < firstBelowControl) {
-				stickyLines.addLast(new StickyLine(line, mapLineNumberToSourceViewerLine(i, sourceViewer)));
-				firstBelowControl++;
-				continue;
-			}
-		}
-	}
-
-	private int getLastStickyLineIndentation(LinkedList<StickyLine> stickyLines) {
-		String text= stickyLines.getLast().text();
-		return getIndentation(text);
-	}
-
-	private int mapLineNumberToSourceViewerLine(int lineNumber, ISourceViewer sourceViewer) {
-		if (sourceViewer instanceof ITextViewerExtension5 extension) {
-			return extension.widgetLine2ModelLine(lineNumber);
-		}
-		return lineNumber;
 	}
 
 	private int getStartIndentation(int startFromLine, StyledText styledText) {
@@ -154,6 +104,20 @@ public class DefaultStickyLinesProvider implements IStickyLinesProvider {
 
 		line= line.replace(TAB, tabAsSpaces);
 		return line.length() - line.stripLeading().length();
+	}
+
+	private int mapLineNumberToWidget(ISourceViewer sourceViewer, int line) {
+		if (sourceViewer instanceof ITextViewerExtension5 extension) {
+			return extension.modelLine2WidgetLine(line);
+		}
+		return line;
+	}
+
+	private int mapLineNumberToViewer(ISourceViewer sourceViewer, int line) {
+		if (sourceViewer instanceof ITextViewerExtension5 extension) {
+			return extension.widgetLine2ModelLine(line);
+		}
+		return line;
 	}
 
 }

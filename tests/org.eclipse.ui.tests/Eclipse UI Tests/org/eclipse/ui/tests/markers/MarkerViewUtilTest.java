@@ -13,6 +13,8 @@
  ******************************************************************************/
 package org.eclipse.ui.tests.markers;
 
+import static org.junit.Assert.assertEquals;
+
 import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.ResourcesPlugin;
@@ -22,32 +24,22 @@ import org.eclipse.ui.IViewPart;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.PlatformUI;
-import org.eclipse.ui.tests.harness.util.UITestCase;
 import org.eclipse.ui.views.markers.MarkerViewUtil;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /**
  * MarkerViewUtilTest are the test for the marker view util.
  *
  * @since 3.13
  */
-@RunWith(JUnit4.class)
-public class MarkerViewUtilTest extends UITestCase {
+public class MarkerViewUtilTest {
 
 	private IProject project;
 
-	/**
-	 * Create a new instance of the receiver.
-	 */
-	public MarkerViewUtilTest() {
-		super(MarkerViewUtilTest.class.getSimpleName());
-	}
-
-	@Override
-	protected void doSetUp() throws Exception {
-		super.doSetUp();
+	@Before
+	public void doSetUp() throws Exception {
 		project = ResourcesPlugin.getWorkspace().getRoot().getProject("tests");
 		if (!project.exists()) {
 			project.create(null);
@@ -58,12 +50,11 @@ public class MarkerViewUtilTest extends UITestCase {
 		}
 	}
 
-	@Override
-	protected void doTearDown() throws Exception {
+	@After
+	public void doTearDown() throws Exception {
 		if (project.exists()) {
 			project.delete(true, null);
 		}
-		super.doTearDown();
 	}
 
 	@Test
@@ -91,6 +82,7 @@ public class MarkerViewUtilTest extends UITestCase {
 		boolean visible = page.isPartVisible(part);
 		assertEquals(true, result);
 		assertEquals(true, visible);
+		page.hideView(part);
 
 		result = MarkerViewUtil.showMarkers(page,
 				new IMarker[] { someBookmarkMarker, someProblemMarker, someTaskMarker }, true);
@@ -98,6 +90,7 @@ public class MarkerViewUtilTest extends UITestCase {
 		visible = page.isPartVisible(part);
 		assertEquals(true, result);
 		assertEquals(true, visible);
+		page.hideView(part);
 
 		result = MarkerViewUtil.showMarkers(page,
 				new IMarker[] { someProblemMarker, someTaskMarker, someBookmarkMarker }, true);
@@ -112,5 +105,6 @@ public class MarkerViewUtilTest extends UITestCase {
 		visible = page.isPartVisible(part);
 		assertEquals(true, result);
 		assertEquals(true, visible);
+		page.hideView(part);
 	}
 }

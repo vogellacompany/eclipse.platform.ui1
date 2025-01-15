@@ -16,7 +16,7 @@ package org.eclipse.ui.internal.texteditor.stickyscroll;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
+import static org.junit.Assert.assertEquals;
 
 import java.util.List;
 
@@ -29,6 +29,7 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
 
+import org.eclipse.jface.text.Document;
 import org.eclipse.jface.text.IRegion;
 import org.eclipse.jface.text.ITextViewerExtension5;
 import org.eclipse.jface.text.source.IVerticalRuler;
@@ -48,6 +49,7 @@ public class DefaultStickyLinesProviderTest {
 	public void setup() {
 		shell = new Shell(Display.getDefault());
 		sourceViewer = new SourceViewer(shell, null, SWT.None);
+		sourceViewer.setDocument(new Document());
 		stickyLinesProvider = new DefaultStickyLinesProvider();
 		textWidget = sourceViewer.getTextWidget();
 		stickyLinesProperties = new StickyLinesProperties(4);
@@ -55,7 +57,7 @@ public class DefaultStickyLinesProviderTest {
 
 	@Test
 	public void testEmptySourceCode() {
-		List<StickyLine> stickyLines = stickyLinesProvider.getStickyLines(sourceViewer, stickyLinesProperties);
+		List<IStickyLine> stickyLines = stickyLinesProvider.getStickyLines(sourceViewer, 0, stickyLinesProperties);
 
 		assertThat(stickyLines, is(empty()));
 	}
@@ -65,11 +67,13 @@ public class DefaultStickyLinesProviderTest {
 		String text = """
 				line 1
 				 line 2<""";
-		setText(text);
+		textWidget.setText(text);
 
-		List<StickyLine> stickyLines = stickyLinesProvider.getStickyLines(sourceViewer, stickyLinesProperties);
+		List<IStickyLine> stickyLines = stickyLinesProvider.getStickyLines(sourceViewer, 1, stickyLinesProperties);
 
-		assertThat(stickyLines, contains(new StickyLine("line 1", 0)));
+		assertEquals(1, stickyLines.size());
+		assertEquals(0, stickyLines.get(0).getLineNumber());
+		assertEquals("line 1", stickyLines.get(0).getText());
 	}
 
 	@Test
@@ -79,11 +83,12 @@ public class DefaultStickyLinesProviderTest {
 				 line 2<
 				  line 3
 				  line 4""";
-		setText(text);
+		textWidget.setText(text);
 
-		List<StickyLine> stickyLines = stickyLinesProvider.getStickyLines(sourceViewer, stickyLinesProperties);
+		List<IStickyLine> stickyLines = stickyLinesProvider.getStickyLines(sourceViewer, 1, stickyLinesProperties);
 
-		assertThat(stickyLines, contains(new StickyLine("line 1", 0), new StickyLine(" line 2<", 1)));
+		assertEquals(1, stickyLines.size());
+		assertEquals(0, stickyLines.get(0).getLineNumber());
 	}
 
 	@Test
@@ -93,11 +98,12 @@ public class DefaultStickyLinesProviderTest {
 				 line 2
 				line 3
 				 line 4<""";
-		setText(text);
+		textWidget.setText(text);
 
-		List<StickyLine> stickyLines = stickyLinesProvider.getStickyLines(sourceViewer, stickyLinesProperties);
+		List<IStickyLine> stickyLines = stickyLinesProvider.getStickyLines(sourceViewer, 3, stickyLinesProperties);
 
-		assertThat(stickyLines, contains(new StickyLine("line 3", 2)));
+		assertEquals(1, stickyLines.size());
+		assertEquals(2, stickyLines.get(0).getLineNumber());
 	}
 
 	@Test
@@ -108,11 +114,13 @@ public class DefaultStickyLinesProviderTest {
 				 line 2
 
 				  line 3<""";
-		setText(text);
+		textWidget.setText(text);
 
-		List<StickyLine> stickyLines = stickyLinesProvider.getStickyLines(sourceViewer, stickyLinesProperties);
+		List<IStickyLine> stickyLines = stickyLinesProvider.getStickyLines(sourceViewer, 4, stickyLinesProperties);
 
-		assertThat(stickyLines, contains(new StickyLine("line 1", 0), new StickyLine(" line 2", 2)));
+		assertEquals(2, stickyLines.size());
+		assertEquals(0, stickyLines.get(0).getLineNumber());
+		assertEquals(2, stickyLines.get(1).getLineNumber());
 	}
 
 	@Test
@@ -122,12 +130,13 @@ public class DefaultStickyLinesProviderTest {
 				line 1
 				\tline 2
 				\t\tline 3<""";
-		setText(text);
+		textWidget.setText(text);
 
-		List<StickyLine> stickyLines = stickyLinesProvider.getStickyLines(sourceViewer, stickyLinesProperties);
+		List<IStickyLine> stickyLines = stickyLinesProvider.getStickyLines(sourceViewer, 2, stickyLinesProperties);
 
-		assertThat(stickyLines, contains(new StickyLine("line 1", 0), new StickyLine("\tline 2", 1)));
-
+		assertEquals(2, stickyLines.size());
+		assertEquals(0, stickyLines.get(0).getLineNumber());
+		assertEquals(1, stickyLines.get(1).getLineNumber());
 	}
 
 	@Test
@@ -141,10 +150,11 @@ public class DefaultStickyLinesProviderTest {
 		textWidget.setText(text);
 		textWidget.setTopIndex(3);
 
-		List<StickyLine> stickyLines = stickyLinesProvider.getStickyLines(sourceViewer, stickyLinesProperties);
+		List<IStickyLine> stickyLines = stickyLinesProvider.getStickyLines(sourceViewer, 3, stickyLinesProperties);
 
-		assertThat(stickyLines, contains(new StickyLine("line 1", 0), new StickyLine(" line 2", 2)));
-
+		assertEquals(2, stickyLines.size());
+		assertEquals(0, stickyLines.get(0).getLineNumber());
+		assertEquals(2, stickyLines.get(1).getLineNumber());
 	}
 
 	@Test
@@ -152,63 +162,41 @@ public class DefaultStickyLinesProviderTest {
 		String text = """
 				line 1
 				 line 2
-				  line 3<
+				  line 3
+
 				line 4""";
-		setText(text);
+		textWidget.setText(text);
 
-		List<StickyLine> stickyLines = stickyLinesProvider.getStickyLines(sourceViewer, stickyLinesProperties);
+		List<IStickyLine> stickyLines = stickyLinesProvider.getStickyLines(sourceViewer, 3, stickyLinesProperties);
 
-		assertThat(stickyLines, contains(new StickyLine("line 1", 0)));
+		assertEquals(2, stickyLines.size());
+		assertEquals(0, stickyLines.get(0).getLineNumber());
+		assertEquals(1, stickyLines.get(1).getLineNumber());
 	}
 
 	@Test
-	public void testRemoveStickyLines() {
-		String text = """
-				line 1
-				 line 2
-				line 3
-				 line 4<""";
-		setText(text);
-
-		List<StickyLine> stickyLines = stickyLinesProvider.getStickyLines(sourceViewer, stickyLinesProperties);
-
-		assertThat(stickyLines, contains(new StickyLine("line 3", 2)));
-	}
-
-	@Test
-	public void testSourceViewerWithDifferentModelAndWindgetLines() {
-		sourceViewer = new SourceViewerLineMapping(shell, null, SWT.None);
+	public void testStickyLineWithSourceViewerLineMapping() {
+		sourceViewer = new SourceViewerWithLineMapping(shell, null, SWT.None);
+		sourceViewer.setDocument(new Document());
 		textWidget = sourceViewer.getTextWidget();
 
 		String text = """
 				line 1
 				 line 2<""";
-		setText(text);
-
-		List<StickyLine> stickyLines = stickyLinesProvider.getStickyLines(sourceViewer, stickyLinesProperties);
-
-		assertThat(stickyLines, contains(new StickyLine("line 1", 42)));
-	}
-
-	/**
-	 * Set the text into the text widget and set the top index to the line
-	 * containing the <.
-	 */
-	private void setText(String text) {
 		textWidget.setText(text);
 
-		String[] lines = text.split("\n");
-		for (int i = 0; i < lines.length; i++) {
-			if (lines[i].contains(String.valueOf("<"))) {
-				textWidget.setTopIndex(i);
-				return;
-			}
-		}
+		// Source viewer line 43 that is mapped to line 1 in the text widget
+		List<IStickyLine> stickyLines = stickyLinesProvider.getStickyLines(sourceViewer, 1 + 42, stickyLinesProperties);
+
+		assertEquals(1, stickyLines.size());
+		// Source viewer line 42 that is mapped to line 0 in the text widget
+		assertEquals(0 + 42, stickyLines.get(0).getLineNumber());
+		assertEquals("line 1", stickyLines.get(0).getText());
 	}
 
-	private class SourceViewerLineMapping extends SourceViewer implements ITextViewerExtension5 {
+	private class SourceViewerWithLineMapping extends SourceViewer implements ITextViewerExtension5 {
 
-		public SourceViewerLineMapping(Composite parent, IVerticalRuler ruler, int styles) {
+		public SourceViewerWithLineMapping(Composite parent, IVerticalRuler ruler, int styles) {
 			super(parent, ruler, styles);
 		}
 
@@ -224,7 +212,12 @@ public class DefaultStickyLinesProviderTest {
 
 		@Override
 		public int widgetLine2ModelLine(int widgetLine) {
-			return 42;
+			return widgetLine + 42;
+		}
+
+		@Override
+		public int modelLine2WidgetLine(int widgetLine) {
+			return widgetLine - 42;
 		}
 
 	}

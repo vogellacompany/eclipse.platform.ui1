@@ -192,7 +192,10 @@ public class HistoryTextWrapper extends Composite {
 
 	@Override
 	public boolean forceFocus() {
-		return textBar.forceFocus();
+		if (!textBar.isDisposed()) {
+			return textBar.forceFocus();
+		}
+		return false;
 	}
 
 	@Override
@@ -202,6 +205,10 @@ public class HistoryTextWrapper extends Composite {
 
 	public Text getTextBar() {
 		return textBar;
+	}
+
+	AccessibleToolBar getDropDownTool() {
+		return tools;
 	}
 
 }

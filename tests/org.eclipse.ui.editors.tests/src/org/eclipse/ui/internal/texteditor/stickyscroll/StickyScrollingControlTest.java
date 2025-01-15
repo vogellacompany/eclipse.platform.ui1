@@ -56,6 +56,7 @@ public class StickyScrollingControlTest {
 	private Color separatorColor;
 	private StickyScrollingControl stickyScrollingControl;
 	private IVerticalRuler ruler;
+	private StickyScrollingControlSettings settings;
 
 	@Before
 	public void setup() {
@@ -71,8 +72,8 @@ public class StickyScrollingControlTest {
 		hoverColor = new Color(1, 1, 1);
 		backgroundColor = new Color(2, 2, 2);
 		separatorColor = new Color(3, 3, 3);
-		StickyScrollingControlSettings settings = new StickyScrollingControlSettings(2, lineNumberColor, hoverColor,
-				backgroundColor, separatorColor, true);
+		settings = new StickyScrollingControlSettings(2, lineNumberColor, hoverColor, backgroundColor, separatorColor,
+				true);
 		stickyScrollingControl = new StickyScrollingControl(sourceViewer, ruler, settings, null);
 	}
 
@@ -87,7 +88,7 @@ public class StickyScrollingControlTest {
 
 	@Test
 	public void testShowStickyLineTexts() {
-		List<StickyLine> stickyLines = List.of(new StickyLine("line 10", 9), new StickyLine("line 20", 19));
+		List<IStickyLine> stickyLines = List.of(new StickyLineStub("line 10", 9), new StickyLineStub("line 20", 19));
 		stickyScrollingControl.setStickyLines(stickyLines);
 
 		StyledText stickyLineNumber = getStickyLineNumber();
@@ -100,7 +101,7 @@ public class StickyScrollingControlTest {
 
 	@Test
 	public void testCorrectColorsApplied() {
-		List<StickyLine> stickyLines = List.of(new StickyLine("line 10", 9), new StickyLine("line 20", 19));
+		List<IStickyLine> stickyLines = List.of(new StickyLineStub("line 10", 9), new StickyLineStub("line 20", 19));
 		stickyScrollingControl.setStickyLines(stickyLines);
 
 		StyledText stickyLineNumber = getStickyLineNumber();
@@ -116,11 +117,11 @@ public class StickyScrollingControlTest {
 
 	@Test
 	public void testLimitStickyLinesCount() {
-		List<StickyLine> stickyLines = List.of(new StickyLine("line 10", 9), new StickyLine("line 20", 19));
+		List<IStickyLine> stickyLines = List.of(new StickyLineStub("line 10", 9), new StickyLineStub("line 20", 19));
 		stickyScrollingControl.setStickyLines(stickyLines);
 
-		StickyScrollingControlSettings settings = new StickyScrollingControlSettings(1, lineNumberColor, hoverColor,
-				backgroundColor, separatorColor, true);
+		settings = new StickyScrollingControlSettings(1, lineNumberColor, hoverColor, backgroundColor, separatorColor,
+				true);
 		stickyScrollingControl.applySettings(settings);
 
 		StyledText stickyLineNumber = getStickyLineNumber();
@@ -133,22 +134,56 @@ public class StickyScrollingControlTest {
 
 	@Test
 	public void testCopyStyleRanges() {
-		sourceViewer.setInput(new Document("line 1"));
-		sourceViewer.getTextWidget().setStyleRange(new StyleRange(0, 6, lineNumberColor, backgroundColor));
-
-		List<StickyLine> stickyLines = List.of(new StickyLine("line 1", 0));
+		StyleRange styleRangeLine1 = new StyleRange(0, 1, lineNumberColor, backgroundColor);
+		StyleRange styleRangeLine2 = new StyleRange(0, 2, hoverColor, separatorColor);
+		List<IStickyLine> stickyLines = List.of(//
+				new StickyLineStub("line 1", 0, new StyleRange[] { styleRangeLine1 }),
+				new StickyLineStub("line 2", 0, new StyleRange[] { styleRangeLine2 }));
 		stickyScrollingControl.setStickyLines(stickyLines);
 
 		StyledText stickyLineText = getStickyLineText();
-		assertEquals(lineNumberColor, stickyLineText.getStyleRangeAtOffset(0).foreground);
-		assertEquals(backgroundColor, stickyLineText.getStyleRangeAtOffset(0).background);
+
+		StyleRange[] styleRanges = stickyLineText.getStyleRanges();
+		assertEquals(2, styleRanges.length);
+		assertEquals(0, styleRanges[0].start);
+		assertEquals(1, styleRanges[0].length);
+		assertEquals(lineNumberColor, styleRanges[0].foreground);
+		assertEquals(backgroundColor, styleRanges[0].background);
+		int startRangeLine2 = stickyLines.get(0).getText().length() + System.lineSeparator().length();
+		assertEquals(startRangeLine2, styleRanges[1].start);
+		assertEquals(2, styleRanges[1].length);
+		assertEquals(hoverColor, styleRanges[1].foreground);
+		assertEquals(separatorColor, styleRanges[1].background);
+	}
+
+	@Test
+	public void testCopyStyleRangesWithLimitedStickyLines() {
+		settings = new StickyScrollingControlSettings(1, lineNumberColor, hoverColor, backgroundColor, separatorColor,
+				true);
+		stickyScrollingControl.applySettings(settings);
+
+		StyleRange styleRangeLine1 = new StyleRange(0, 1, lineNumberColor, backgroundColor);
+		StyleRange styleRangeLine2 = new StyleRange(0, 2, hoverColor, separatorColor);
+		List<IStickyLine> stickyLines = List.of(//
+				new StickyLineStub("line 1", 0, new StyleRange[] { styleRangeLine1 }),
+				new StickyLineStub("line 2", 0, new StyleRange[] { styleRangeLine2 }));
+		stickyScrollingControl.setStickyLines(stickyLines);
+
+		StyledText stickyLineText = getStickyLineText();
+
+		StyleRange[] styleRanges = stickyLineText.getStyleRanges();
+		assertEquals(1, styleRanges.length);
+		assertEquals(0, styleRanges[0].start);
+		assertEquals(1, styleRanges[0].length);
+		assertEquals(lineNumberColor, styleRanges[0].foreground);
+		assertEquals(backgroundColor, styleRanges[0].background);
 	}
 
 	@Test
 	public void testWithoutVerticalRuler() {
 		sourceViewer = new SourceViewer(shell, null, SWT.None);
-		StickyScrollingControlSettings settings = new StickyScrollingControlSettings(5, lineNumberColor, hoverColor,
-				backgroundColor, separatorColor, true);
+		settings = new StickyScrollingControlSettings(5, lineNumberColor, hoverColor, backgroundColor, separatorColor,
+				true);
 		stickyScrollingControl = new StickyScrollingControl(sourceViewer, settings);
 
 		StyledText stickyLineNumber = getStickyLineNumber();
@@ -158,14 +193,14 @@ public class StickyScrollingControlTest {
 	@Test
 	public void testWithoutLineNumber() {
 		when(ruler.getWidth()).thenReturn(20);
-		List<StickyLine> stickyLines = List.of(new StickyLine("line 10", 9), new StickyLine("line 20", 19));
+		List<IStickyLine> stickyLines = List.of(new StickyLineStub("line 10", 9), new StickyLineStub("line 20", 19));
 		stickyScrollingControl.setStickyLines(stickyLines);
 
 		StyledText stickyLineNumber = getStickyLineNumber();
 		assertThat(stickyLineNumber.getLeftMargin(), greaterThan(0));
 
-		StickyScrollingControlSettings settings = new StickyScrollingControlSettings(5, lineNumberColor, hoverColor,
-				backgroundColor, separatorColor, false);
+		settings = new StickyScrollingControlSettings(5, lineNumberColor, hoverColor, backgroundColor, separatorColor,
+				false);
 		stickyScrollingControl.applySettings(settings);
 
 		stickyLineNumber = getStickyLineNumber();
@@ -179,7 +214,7 @@ public class StickyScrollingControlTest {
 		sourceViewer.getTextWidget().setFont(font);
 		sourceViewer.getTextWidget().setForeground(hoverColor);
 
-		List<StickyLine> stickyLines = List.of(new StickyLine("line 1", 0));
+		List<IStickyLine> stickyLines = List.of(new StickyLineStub("line 1", 0));
 		stickyScrollingControl.setStickyLines(stickyLines);
 
 		StyledText stickyLineNumber = getStickyLineNumber();
@@ -196,7 +231,7 @@ public class StickyScrollingControlTest {
 	public void testLayoutStickyLinesCanvasOnResize() {
 		sourceViewer.getTextWidget().setBounds(0, 0, 200, 200);
 
-		List<StickyLine> stickyLines = List.of(new StickyLine("line 1", 0));
+		List<IStickyLine> stickyLines = List.of(new StickyLineStub("line 1", 0));
 		stickyScrollingControl.setStickyLines(stickyLines);
 
 		Canvas stickyControlCanvas = getStickyControlCanvas(shell);
@@ -218,6 +253,25 @@ public class StickyScrollingControlTest {
 	}
 
 	@Test
+	public void testDontLayoutOutDatedStickyLinesOnResize() {
+		sourceViewer.getTextWidget().setBounds(0, 0, 200, 200);
+
+		List<IStickyLine> stickyLines = List.of(new StickyLineStub("line 10", 10));
+		stickyScrollingControl.setStickyLines(stickyLines);
+
+		Canvas stickyControlCanvas = getStickyControlCanvas(shell);
+		Rectangle boundsBeforeResize = stickyControlCanvas.getBounds();
+
+		sourceViewer.getTextWidget().setBounds(0, 0, 150, 200);
+
+		stickyControlCanvas = getStickyControlCanvas(shell);
+		Rectangle boundsAfterResize = stickyControlCanvas.getBounds();
+
+		// No IllegalArgumentException: Index out of bounds
+		assertEquals(boundsAfterResize, boundsBeforeResize);
+	}
+
+	@Test
 	public void testNavigateToStickyLine() {
 		String text = """
 				line 1
@@ -225,7 +279,7 @@ public class StickyScrollingControlTest {
 		sourceViewer.setInput(new Document(text));
 		sourceViewer.getTextWidget().setBounds(0, 0, 200, 200);
 
-		List<StickyLine> stickyLines = List.of(new StickyLine("line 2", 1));
+		List<IStickyLine> stickyLines = List.of(new StickyLineStub("line 2", 1));
 		stickyScrollingControl.setStickyLines(stickyLines);
 
 		Canvas stickyControlCanvas = getStickyControlCanvas(shell);
@@ -273,9 +327,9 @@ public class StickyScrollingControlTest {
 	}
 
 	@Test
-	public void limitStickyLinesToTextWidgetHeight() {
+	public void testLimitStickyLinesToTextWidgetHeight() {
 		sourceViewer.getTextWidget().setBounds(0, 0, 200, 200);
-		List<StickyLine> stickyLines = List.of(new StickyLine("line 2", 1));
+		List<IStickyLine> stickyLines = List.of(new StickyLineStub("line 2", 1));
 		stickyScrollingControl.setStickyLines(stickyLines);
 
 		StyledText stickyLineText = getStickyLineText();
@@ -419,4 +473,35 @@ public class StickyScrollingControlTest {
 		}
 	}
 
+	private class StickyLineStub implements IStickyLine {
+
+		private final String text;
+		private final int lineNumber;
+		private StyleRange[] styleRanges;
+
+		public StickyLineStub(String text, int lineNumber) {
+			this(text, lineNumber, null);
+		}
+
+		public StickyLineStub(String text, int lineNumber, StyleRange[] styleRanges) {
+			this.text = text;
+			this.lineNumber = lineNumber;
+			this.styleRanges = styleRanges;
+		}
+
+		@Override
+		public int getLineNumber() {
+			return lineNumber;
+		}
+
+		@Override
+		public String getText() {
+			return text;
+		}
+
+		@Override
+		public StyleRange[] getStyleRanges() {
+			return styleRanges;
+		}
+	}
 }

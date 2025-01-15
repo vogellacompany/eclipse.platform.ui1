@@ -22,6 +22,7 @@ import static org.eclipse.ui.texteditor.AbstractDecoratedTextEditorPreferenceCon
 
 import java.time.Duration;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 
 import org.eclipse.swt.graphics.Color;
@@ -121,9 +122,7 @@ public class StickyScrollingHandler implements IViewportListener {
 		int stickyScrollingMaxCount= store.getInt(EDITOR_STICKY_SCROLLING_MAXIMUM_COUNT);
 
 		Color lineNumberColor= new Color(PreferenceConverter.getColor(store, EDITOR_LINE_NUMBER_RULER_COLOR));
-		sourceViewer.getTextWidget().addDisposeListener(e -> lineNumberColor.dispose());
 		Color stickyLineHoverColor= new Color(PreferenceConverter.getColor(store, EDITOR_CURRENT_LINE_COLOR));
-		sourceViewer.getTextWidget().addDisposeListener(e -> stickyLineHoverColor.dispose());
 		Color stickyLineBackgroundColor= sourceViewer.getTextWidget().getBackground();
 		boolean showLineNumbers= store.getBoolean(EDITOR_LINE_NUMBER_RULER);
 		Color stickyLineSeparatorColor= null;
@@ -151,11 +150,48 @@ public class StickyScrollingHandler implements IViewportListener {
 	}
 
 	private void calculateAndShowStickyLines() {
-		List<StickyLine> stickyLines= stickyLinesProvider.getStickyLines(sourceViewer, stickyLinesProperties);
+		List<IStickyLine> stickyLines= Collections.emptyList();
+
+		int startLine= sourceViewer.getTopIndex();
+
+		if (startLine > 0) {
+			stickyLines= stickyLinesProvider.getStickyLines(sourceViewer, sourceViewer.getTopIndex(), stickyLinesProperties);
+		}
+
 		if (stickyLines == null) {
 			stickyLines= Collections.emptyList();
 		}
+
+		stickyLines= adaptStickyLinesToVisibleArea(stickyLines, startLine);
+
 		stickyScrollingControl.setStickyLines(stickyLines);
+	}
+
+	private List<IStickyLine> adaptStickyLinesToVisibleArea(List<IStickyLine> stickyLines, int startLine) {
+		if (stickyLines.isEmpty()) {
+			return stickyLines;
+		}
+
+		LinkedList<IStickyLine> adaptedStickyLines= new LinkedList<>(stickyLines);
+
+		int firstVisibleLine= startLine + adaptedStickyLines.size();
+		int numberOfLines= sourceViewer.getDocument().getNumberOfLines();
+
+		for (int i= startLine + 1; i <= firstVisibleLine && i < numberOfLines; i++) {
+			List<IStickyLine> stickyLinesInLineI= stickyLinesProvider.getStickyLines(sourceViewer, i, stickyLinesProperties);
+
+			if (stickyLinesInLineI.size() > adaptedStickyLines.size()) {
+				adaptedStickyLines= new LinkedList<>(stickyLinesInLineI);
+				firstVisibleLine= startLine + adaptedStickyLines.size();
+			}
+
+			while (stickyLinesInLineI.size() < adaptedStickyLines.size() && i < firstVisibleLine) {
+				adaptedStickyLines.removeLast();
+				firstVisibleLine--;
+			}
+		}
+
+		return adaptedStickyLines;
 	}
 
 	/**
